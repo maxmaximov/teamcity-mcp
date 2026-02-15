@@ -1509,6 +1509,46 @@ const DEV_TOOLS: ToolDefinition[] = [
     },
   },
 
+  {
+    name: 'move_build_to_top',
+    description: 'Move a queued build to the top of the queue (position 1)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        buildId: { type: 'string', description: 'Queued build ID to move to top' },
+      },
+      required: ['buildId'],
+    },
+    handler: async (args: unknown) => {
+      const schema = z.object({ buildId: z.string().min(1) });
+      return runTool(
+        'move_build_to_top',
+        schema,
+        async (typed) => {
+          const adapter = createAdapterFromTeamCityAPI(TeamCityAPI.getInstance());
+
+          const queuedBuild = await adapter.modules.buildQueue.getQueuedBuild(
+            `id:${typed.buildId}`
+          );
+          const build = queuedBuild.data;
+
+          await adapter.modules.buildQueue.setQueuedBuildPosition('1', undefined, build as Build, {
+            headers: { 'Content-Type': 'application/json' },
+          });
+
+          return json({
+            success: true,
+            action: 'move_build_to_top',
+            buildId: typed.buildId,
+            newPosition: 1,
+          });
+        },
+        args
+      );
+    },
+    mode: 'dev',
+  },
+
   // === Build Configuration Tools ===
   {
     name: 'list_build_configs',
